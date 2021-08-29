@@ -18,8 +18,11 @@ func main() {
 	flag.StringVar(&argUser, "user", "", "If given, string length is printed.")
 	flag.Parse()
 
+	var arr [4]string
+
 	args := os.Args
-	fmt.Printf("Args: %#v \n", args)
+	fmt.Printf("Args: T:%T V:%#[1]v \n", args)
+	fmt.Printf("Arr: T:%T V:%[1]q \n", arr)
 
 	if argFile != "" {
 		printFilename(argFile)
