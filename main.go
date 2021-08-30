@@ -24,6 +24,8 @@ func main() {
 
 	utf8Sample()
 
+	arrays()
+
 	sliceGotcha()
 }
 
@@ -72,6 +74,22 @@ func utf8Sample() {
 	*/
 
 	fmt.Printf("日本語 => len: %d runes: %d\n", len(nihongo), utf8.RuneCountInString(nihongo))
+}
+
+func arrays() {
+	fmt.Printf("\n=== Arrays ===\n")
+
+	// Arrays are value types, and their types also include length.
+	// So their size can not be changed in runtime. Length belongs compile time.
+	seasons := [4]string{"summer", "fall", "winter", "sprint"}
+
+	// Since arrays are values, in assignments they are copied.
+	// Also in for...range operations, they are copied again;
+	copy := seasons
+	copy[1] = "autumn"
+
+	fmt.Printf("Org: %#v\n", seasons)
+	fmt.Printf("Copy: %#v\n", copy)
 }
 
 func sliceGotcha() {
