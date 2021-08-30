@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 	"unicode/utf8"
 )
 
@@ -16,20 +18,22 @@ func main() {
 	flag.StringVar(&argFile, "file", "", "If given, filename part is printed.")
 	flag.Parse()
 
-	printArgs()
+	args()
 
-	printFilename(argFile)
+	splitFilename(argFile)
 
-	printUtf8Sample()
+	utf8Sample()
+
+	sliceGotcha()
 }
 
-func printArgs() {
+func args() {
 	fmt.Printf("\n=== Args ===\n")
 	args := os.Args
 	fmt.Printf("Args: V:%#v \n", args)
 }
 
-func printFilename(filename string) {
+func splitFilename(filename string) {
 	fmt.Printf("\n=== Split Filename ===\n")
 
 	if filename == "" {
@@ -42,7 +46,7 @@ func printFilename(filename string) {
 	fmt.Println("Filename:", filename, "full-path:", path)
 }
 
-func printUtf8Sample() {
+func utf8Sample() {
 	// Go source code is always utf-8.
 	// A string in go is read-only slice of arbitrary bytes; not have to unicode text.
 	// A string literal always holds valid UTF-8 sequences.
@@ -68,4 +72,27 @@ func printUtf8Sample() {
 	*/
 
 	fmt.Printf("日本語 => len: %d runes: %d\n", len(nihongo), utf8.RuneCountInString(nihongo))
+}
+
+func sliceGotcha() {
+	fmt.Printf("\n=== Slice Gotcha ===\n")
+
+	const s = "You need to find me somehow!"
+
+	b, err := ioutil.ReadFile("./main.go")
+	if err != nil {
+		panic("Could not read main.go")
+	}
+
+	x := regexp.MustCompile(`(?m:^.*somehow.*$)`)
+	b2 := x.Find(b)
+
+	// Gotcha here is 'm' slice' is created from 'b' slice.
+	// Underneath, they point point to the same array, which hold all file content.
+	// So for a single line, we keep whole document in the memory.
+	fmt.Printf("Matched line: %q\n", string(b2))
+
+	// Solution is, before returing the matched line, we need to copy it.
+	b3 := append([]byte(nil), b2...)
+	fmt.Printf("Copied line: %q\n", string(b3))
 }
