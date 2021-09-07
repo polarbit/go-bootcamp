@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -27,6 +29,8 @@ func main() {
 	arrays()
 
 	sliceGotcha()
+
+	clojure().Wait()
 }
 
 func args() {
@@ -105,12 +109,87 @@ func sliceGotcha() {
 	x := regexp.MustCompile(`(?m:^.*somehow.*$)`)
 	b2 := x.Find(b)
 
-	// Gotcha here is 'm' slice' is created from 'b' slice.
+	/*
+  When you create a slice, they both point to the same array.
+  If original slice is much bigger than child slice, and
+  if you don't need original slice but smaller child slice, 
+  you better copy smaller slice to new slice then return it.
+  */
+
+	// Gotcha here is 'b2' slice' is created from 'b' slice.
 	// Underneath, they point point to the same array, which hold all file content.
 	// So for a single line, we keep whole document in the memory.
 	fmt.Printf("Matched line: %q\n", string(b2))
+	fmt.Printf("capacity: %v\n", cap(b))
 
 	// Solution is, before returing the matched line, we need to copy it.
 	b3 := append([]byte(nil), b2...)
-	fmt.Printf("Copied line: %q\n", string(b3))
+	fmt.Printf("Copied line: %q (Actually hold all main.go lines in the memory)\n", string(b3))
+	fmt.Printf("capacity: %v (Only a single line remains in memory)\n", cap(b3))
+}
+
+func clojure() *sync.WaitGroup {
+	fmt.Printf("\n=== Clojures in Go ===\n")
+  fmt.Println()
+  
+  var wgx sync.WaitGroup
+	wgx.Add(1)
+
+	go func() {
+		local := 1
+		var wg sync.WaitGroup
+
+		// Anonymous function with local closure
+		f := func() {
+			fmt.Println(local)
+		}
+
+		// Print local in each second
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+      done := make(chan bool, 1)
+			ticker := time.NewTicker(1 * time.Second)
+      for {
+        select {
+          case <- ticker.C:
+            f()
+            if local > 5 {
+              ticker.Stop()
+              done <- true
+            }
+          case <- done:
+            return
+        }
+      }
+		}()
+
+		// Increment local in each second
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+      done := make(chan bool, 1)
+			ticker := time.NewTicker(1 * time.Second)
+      // When ticker.Stop is called; ticker is stopped but 
+      // it does not close the ticker channel. so "range" not works
+      // This is why we use just "for"
+      for {
+        select {
+          case <- ticker.C:
+            local += 1
+            if local > 5 {
+              ticker.Stop()
+              done <- true
+            }
+          case <- done:
+            return
+        }
+      }
+		}()
+
+		wg.Wait()
+		wgx.Done()
+	}()
+
+	return &wgx
 }
