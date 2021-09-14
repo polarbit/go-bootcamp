@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"regexp"
@@ -30,7 +32,11 @@ func main() {
 
 	sliceGotcha()
 
-	clojure().Wait()
+	// clojure().Wait()
+
+	dynamicJsonUnmarshal()
+
+	jsonDecoderEncoder()
 }
 
 func args() {
@@ -110,11 +116,11 @@ func sliceGotcha() {
 	b2 := x.Find(b)
 
 	/*
-  When you create a slice, they both point to the same array.
-  If original slice is much bigger than child slice, and
-  if you don't need original slice but smaller child slice, 
-  you better copy smaller slice to new slice then return it.
-  */
+	  When you create a slice, they both point to the same array.
+	  If original slice is much bigger than child slice, and
+	  if you don't need original slice but smaller child slice,
+	  you better copy smaller slice to new slice then return it.
+	*/
 
 	// Gotcha here is 'b2' slice' is created from 'b' slice.
 	// Underneath, they point point to the same array, which hold all file content.
@@ -130,9 +136,9 @@ func sliceGotcha() {
 
 func clojure() *sync.WaitGroup {
 	fmt.Printf("\n=== Clojures in Go ===\n")
-  fmt.Println()
-  
-  var wgx sync.WaitGroup
+	fmt.Println()
+
+	var wgx sync.WaitGroup
 	wgx.Add(1)
 
 	go func() {
@@ -148,43 +154,43 @@ func clojure() *sync.WaitGroup {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-      done := make(chan bool, 1)
+			done := make(chan bool, 1)
 			ticker := time.NewTicker(1 * time.Second)
-      for {
-        select {
-          case <- ticker.C:
-            f()
-            if local > 5 {
-              ticker.Stop()
-              done <- true
-            }
-          case <- done:
-            return
-        }
-      }
+			for {
+				select {
+				case <-ticker.C:
+					f()
+					if local > 5 {
+						ticker.Stop()
+						done <- true
+					}
+				case <-done:
+					return
+				}
+			}
 		}()
 
 		// Increment local in each second
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-      done := make(chan bool, 1)
+			done := make(chan bool, 1)
 			ticker := time.NewTicker(1 * time.Second)
-      // When ticker.Stop is called; ticker is stopped but 
-      // it does not close the ticker channel. so "range" not works
-      // This is why we use just "for"
-      for {
-        select {
-          case <- ticker.C:
-            local += 1
-            if local > 5 {
-              ticker.Stop()
-              done <- true
-            }
-          case <- done:
-            return
-        }
-      }
+			// When ticker.Stop is called; ticker is stopped but
+			// it does not close the ticker channel. so "range" not works
+			// This is why we use just "for"
+			for {
+				select {
+				case <-ticker.C:
+					local += 1
+					if local > 5 {
+						ticker.Stop()
+						done <- true
+					}
+				case <-done:
+					return
+				}
+			}
 		}()
 
 		wg.Wait()
@@ -192,4 +198,54 @@ func clojure() *sync.WaitGroup {
 	}()
 
 	return &wgx
+}
+
+func dynamicJsonUnmarshal() {
+	b := []byte(`{"Name":"Wednesday","Age":6,"Parents":["Gomez","Morticia"], "isFemale": true}`)
+	var f interface{}
+	err := json.Unmarshal(b, &f)
+
+	if err != nil {
+		fmt.Printf("unmarshal error: %v", err.Error())
+		return
+	}
+
+	fmt.Printf("json: %+v \n", f)
+	j := f.(map[string]interface{})
+
+	for k, v := range j {
+		switch vv := v.(type) {
+		case string:
+			fmt.Println(k, "is string", vv)
+		case float64:
+			fmt.Println(k, "is float64", vv)
+		case []interface{}:
+			fmt.Println(k, "is array")
+			for i, u := range vv {
+				fmt.Println(k, "=> item:", i, u)
+			}
+		default:
+			fmt.Println("alien item:", k)
+		}
+	}
+}
+
+func jsonDecoderEncoder() {
+	dec := json.NewDecoder(os.Stdin)
+	enc := json.NewEncoder(os.Stdout)
+	for {
+		var v map[string]interface{}
+		if err := dec.Decode(&v); err != nil {
+			log.Panicln(err)
+			return
+		}
+		for k := range v {
+			if k != "Name" {
+				delete(v, k)
+			}
+		}
+		if err := enc.Encode(&v); err != nil {
+			log.Println(err)
+		}
+	}
 }
